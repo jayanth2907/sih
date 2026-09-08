@@ -5,12 +5,14 @@ from fastapi.responses import PlainTextResponse
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AuditEvent, Mine, Violation, Inspection, Document
+from app.models import AuditEvent, Mine, Violation, Inspection, Document, User
 from app.schemas import AuditEventResponse
 from app.ledger import verify_audit_ledger, calculate_event_hash, GENESIS_HASH
+from app.core.dependencies import get_optional_current_user, get_authorized_mine_ids
 
 router = APIRouter(prefix="/api/audit", tags=["Audit Ledger"])
 v1_router = APIRouter(prefix="/api/v1/audit", tags=["Audit Ledger v1"])
+
 
 def determine_event_category(action: str, entity_type: str) -> str:
     act = (action or "").upper()

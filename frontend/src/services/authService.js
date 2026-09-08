@@ -1,11 +1,11 @@
 import api from './api';
 
 export const authService = {
-  login: async (email, password = 'demo') => {
+  login: async (identifier, password = 'demo') => {
     const response = await api.post('/api/auth/login', {
-      username: email.split('@')[0],
-      role: email.includes('officer') ? 'MINE_OFFICER' : email.includes('regulator') ? 'REGULATOR' : 'CORPORATE',
-      password
+      username: identifier,
+      email: identifier.includes('@') ? identifier : undefined,
+      password: password
     });
     return response.data;
   },

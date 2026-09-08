@@ -7,9 +7,9 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('khandrishti_user');
-    return saved ? JSON.parse(saved) : DEMO_USERS[0]; // Default to Jayanth Varma (Corporate) for rich demo
+    return saved ? JSON.parse(saved) : null;
   });
-  const [token, setToken] = useState(() => localStorage.getItem('khandrishti_token') || 'demo_token');
+  const [token, setToken] = useState(() => localStorage.getItem('khandrishti_token') || null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -28,40 +28,50 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  const login = async (email, password = 'demo') => {
+  const login = async (identifier, password = 'demo') => {
     setLoading(true);
     try {
-      // Find matching demo user details if available
-      const matchingDemo = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      const data = await authService.login(email, password);
+      const data = await authService.login(identifier, password);
       setToken(data.access_token);
       
+      const backendUser = data.user;
+      const matchingDemo = DEMO_USERS.find(
+        u => u.email.toLowerCase() === (backendUser.email || '').toLowerCase() ||
+             u.role.toLowerCase() === (backendUser.role || '').toLowerCase()
+      );
+      
       const userData = {
-        name: matchingDemo?.name || email.split('@')[0].toUpperCase(),
-        email: email,
-        role: data.role,
-        scope: data.scope,
-        designation: matchingDemo?.designation || `${data.role} Officer`,
-        subsidiary: matchingDemo?.subsidiary || (data.scope?.subsidiary || 'Coal India'),
-        avatar: matchingDemo?.avatar || email.substring(0, 2).toUpperCase(),
+        id: backendUser.id,
+        name: backendUser.name,
+        username: backendUser.username,
+        email: backendUser.email,
+        role: backendUser.role,
+        mine_id: backendUser.mine_id,
+        mine_name: backendUser.mine_name,
+        subsidiary: backendUser.subsidiary,
+        permissions: backendUser.permissions || [],
+        designation: matchingDemo?.designation || `${backendUser.role} Authority`,
+        avatar: backendUser.name
+          ? backendUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+          : backendUser.role.substring(0, 2)
       };
       
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
-      // Graceful fallback for offline demo
-      const fallbackUser = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase()) || DEMO_USERS[0];
-      setUser(fallbackUser);
-      setToken('demo_token');
-      return { success: true };
+      console.error('Login error:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const switchUser = (selectedUser) => {
-    setUser(selectedUser);
+  const switchUser = async (selectedUser) => {
+    try {
+      await login(selectedUser.email || selectedUser.role.toLowerCase(), 'demo');
+    } catch (err) {
+      setUser(selectedUser);
+    }
   };
 
   const logout = () => {

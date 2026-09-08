@@ -63,10 +63,12 @@ class User(Base):
     password_hash = Column(String(200), nullable=False)
     role = Column(String(20), nullable=False, default=RoleEnum.INSPECTOR)
     mine_id = Column(Integer, ForeignKey("mines.id"), nullable=True)
+    subsidiary = Column(String(100), nullable=True)
     contractor_id = Column(Integer, ForeignKey("contractors.id"), nullable=True)
     preferred_language = Column(String(10), default="en")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 
     mine = relationship("Mine", back_populates="users")
     inspections = relationship("Inspection", back_populates="inspector")

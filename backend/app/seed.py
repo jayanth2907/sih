@@ -85,9 +85,9 @@ def seed_db(db_session=None, force: bool = False):
 
     # 5. Seed Core Users
     users = [
-        User(username="inspector1", email="inspector.dhanbad@dgms.gov.in", name="Rajesh Kumar (Field Inspector)", password_hash="demo", role=RoleEnum.INSPECTOR, mine_id=mines[0].id),
-        User(username="mine_officer1", email="officer.jharia@bccl.co.in", name="Priya Verma (Mine Safety Manager)", password_hash="demo", role=RoleEnum.MINE_OFFICER, mine_id=mines[2].id),
-        User(username="corporate1", email="dir.safety@coalindia.in", name="Dr. Anil Deshmukh (Director Safety, CIL)", password_hash="demo", role=RoleEnum.CORPORATE),
+        User(username="inspector1", email="inspector.dhanbad@dgms.gov.in", name="Rajesh Kumar (Field Inspector)", password_hash="demo", role=RoleEnum.INSPECTOR, mine_id=mines[2].id, subsidiary="NCL"),
+        User(username="mine_officer1", email="officer.jharia@bccl.co.in", name="Priya Verma (Mine Safety Manager)", password_hash="demo", role=RoleEnum.MINE_OFFICER, mine_id=mines[2].id, subsidiary="NCL"),
+        User(username="corporate1", email="dir.safety@coalindia.in", name="Dr. Anil Deshmukh (Director Safety, SECL)", password_hash="demo", role=RoleEnum.CORPORATE, subsidiary="SECL"),
         User(username="regulator1", email="dg.dgms@dgms.gov.in", name="Sanjay Chatterji (DGMS Chief Regulator)", password_hash="demo", role=RoleEnum.REGULATOR),
         User(username="contractor1", email="ramesh@bhme.co.in", name="Ramesh Sharma (BHME Lead Contractor)", password_hash="demo", role=RoleEnum.CONTRACTOR, contractor_id=contractors[0].id),
         User(username="admin1", email="admin@coalgov.gov.in", name="System Administrator", password_hash="demo", role=RoleEnum.ADMIN)

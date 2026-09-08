@@ -1,23 +1,49 @@
-import random
-import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import List, Optional
 from app.database import get_db
 from app.models import Inspection, Observation, Violation, Mine, Regulation, User, SeverityEnum, ViolationStatusEnum
 from app.schemas import InspectionCreate, InspectionResponse
 from app.ledger import record_audit_event
 from app.sync_service import process_mobile_batch_sync
+from app.core.dependencies import get_current_user, get_authorized_mine_ids, verify_mine_access
 
 router = APIRouter(prefix="/api/inspections", tags=["Inspections"])
 v1_router = APIRouter(prefix="/api/v1/inspections", tags=["Inspections V1"])
 
-@router.get("", response_model=list[InspectionResponse])
-@v1_router.get("", response_model=list[InspectionResponse])
-def list_inspections(mine_id: int = None, db: Session = Depends(get_db)):
+@router.get("", response_model=List[InspectionResponse])
+@v1_router.get("", response_model=List[InspectionResponse])
+def list_inspections(
+    mine_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     query = db.query(Inspection)
-    if mine_id:
+    
+    # Enforce data scoping
+    allowed_mine_ids = get_authorized_mine_ids(current_user, db)
+    if allowed_mine_ids is not None:
+        if mine_id and mine_id not in allowed_mine_ids:
+            return []
+        query = query.filter(Inspection.mine_id.in_(allowed_mine_ids))
+    elif mine_id:
         query = query.filter(Inspection.mine_id == mine_id)
+
     return query.order_by(Inspection.id.desc()).all()
+
+@router.get("/{inspection_id}", response_model=InspectionResponse)
+@v1_router.get("/{inspection_id}", response_model=InspectionResponse)
+def get_inspection(
+    inspection_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
+    if not inspection:
+        raise HTTPException(status_code=404, detail=f"Inspection #{inspection_id} not found")
+
+    verify_mine_access(inspection.mine_id, current_user, db)
+    return inspection
 
 @router.get("/regulations")
 @v1_router.get("/regulations")
@@ -38,14 +64,20 @@ def mobile_batch_sync_endpoint(payload: dict, db: Session = Depends(get_db)):
     return result
 
 @router.post("", response_model=InspectionResponse)
+@v1_router.post("", response_model=InspectionResponse)
 def create_inspection(
     payload: InspectionCreate,
     inspector_id: int = 1,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # Verify user permission for the target mine
+    verify_mine_access(payload.mine_id, current_user, db)
+
     mine = db.query(Mine).filter(Mine.id == payload.mine_id).first()
     if not mine:
-        raise HTTPException(status_code=404, detail="Mine not found")
+        raise HTTPException(status_code=404, detail=f"Mine #{payload.mine_id} not found")
+
 
     inspector = db.query(User).filter(User.id == inspector_id).first()
     inspector_name = inspector.name if inspector else "Field Inspector"

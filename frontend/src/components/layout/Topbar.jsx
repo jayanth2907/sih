@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { Search, Bell, Moon, ChevronDown, RefreshCw, UserCheck, Check, ShieldAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Bell, Moon, ChevronDown, RefreshCw, LogOut, Shield, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useScope } from '../../context/ScopeContext';
 import { useToast } from '../../context/ToastContext';
 import { demoService } from '../../services/demoService';
-import { DEMO_USERS, APP_TAGLINE } from '../../utils/constants';
+import { APP_TAGLINE } from '../../utils/constants';
 
 export const Topbar = ({ isCollapsed, onOpenSearch, onOpenNotifications, onToggleAICopilot }) => {
-  const { user, switchUser } = useAuth();
+  const { user, logout } = useAuth();
   const { selectedScope, setSelectedScope, subsidiaries } = useScope();
   const { showToast } = useToast();
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isScopeMenuOpen, setIsScopeMenuOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const navigate = useNavigate();
 
   const handleResetDemo = async () => {
     setIsResetting(true);
@@ -26,6 +27,36 @@ export const Topbar = ({ isCollapsed, onOpenSearch, onOpenNotifications, onToggl
       setIsResetting(false);
     }
   };
+
+  const handleLogout = () => {
+    logout();
+    showToast('Session ended. Redirecting to Login...', 'info');
+    navigate('/login');
+  };
+
+  // Get user role badge color
+  const getRoleBadgeStyle = (role) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'CORPORATE':
+        return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+      case 'REGULATOR':
+        return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+      case 'MINE_OFFICER':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      case 'INSPECTOR':
+        return 'bg-teal-500/10 text-teal-400 border-teal-500/30';
+      default:
+        return 'bg-brand-forest text-brand-emerald border-brand-emerald/30';
+    }
+  };
+
+  const userDisplayName = user?.name || 'Authorized Official';
+  const userRole = user?.role || 'MINE_OFFICER';
+  const userScopeLabel = user?.mine_name
+    ? `${user.mine_name} • ${user.subsidiary || 'NCL'}`
+    : (user?.subsidiary || 'Enterprise Scope');
 
   return (
     <header
@@ -72,7 +103,7 @@ export const Topbar = ({ isCollapsed, onOpenSearch, onOpenNotifications, onToggl
           {isScopeMenuOpen && (
             <div className="absolute right-0 mt-2 w-64 bg-brand-surface border border-brand-border rounded-xl shadow-2xl py-1 z-50">
               <div className="px-3 py-1.5 text-[11px] font-semibold text-text-muted uppercase tracking-wider border-b border-brand-border">
-                Select Jurisdiction / Subsidiary
+                Jurisdiction / Subsidiary Scope
               </div>
               {subsidiaries.map((sub) => (
                 <button
@@ -120,57 +151,36 @@ export const Topbar = ({ isCollapsed, onOpenSearch, onOpenNotifications, onToggl
           <Moon className="w-4 h-4" />
         </div>
 
-        {/* User Persona Profile & Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center gap-2.5 pl-2 pr-1.5 py-1 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-border-light transition-colors"
-          >
-            <div className="w-7 h-7 rounded-lg bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-md">
-              {user?.avatar || 'JV'}
+        {/* Authenticated User Profile Display & Direct Logout Button */}
+        <div className="flex items-center gap-2 pl-2 border-l border-brand-border/60">
+          <div className="flex items-center gap-2.5 pl-2 pr-2.5 py-1 rounded-xl bg-brand-surface border border-brand-border">
+            <div className="w-7 h-7 rounded-lg bg-brand-forest border border-brand-emerald/30 text-brand-emerald font-bold text-xs flex items-center justify-center shadow-md">
+              {user?.avatar || 'KD'}
             </div>
             <div className="text-left hidden md:block">
-              <p className="text-xs font-bold text-text-primary leading-tight">{user?.name || 'Jayanth Varma'}</p>
-              <p className="text-[10px] text-text-muted leading-tight">{user?.role || 'Corporate'}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-text-primary leading-tight truncate max-w-[140px]">
+                  {userDisplayName}
+                </p>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded border font-semibold ${getRoleBadgeStyle(userRole)}`}>
+                  {userRole}
+                </span>
+              </div>
+              <p className="text-[10px] text-text-muted leading-tight truncate max-w-[180px]">
+                {userScopeLabel}
+              </p>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+          </div>
+
+          {/* Direct Logout Button */}
+          <button
+            onClick={handleLogout}
+            title="Sign Out of Session"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-status-critical/10 border border-status-critical/30 text-status-critical text-xs font-semibold hover:bg-status-critical/20 transition-all shadow-sm cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Logout</span>
           </button>
-
-          {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-brand-surface border border-brand-border rounded-xl shadow-2xl py-2 z-50">
-              <div className="px-4 py-2 border-b border-brand-border">
-                <p className="text-xs font-bold text-text-primary">{user?.name}</p>
-                <p className="text-[11px] text-brand-emerald font-medium">{user?.designation}</p>
-                <p className="text-[10px] text-text-muted">{user?.subsidiary}</p>
-              </div>
-
-              <div className="px-3 py-1.5 text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                Switch Demo Persona
-              </div>
-
-              {DEMO_USERS.map((demo) => (
-                <button
-                  key={demo.email}
-                  onClick={() => {
-                    switchUser(demo);
-                    setIsUserMenuOpen(false);
-                    showToast(`Switched user to: ${demo.name} (${demo.role})`, 'info');
-                  }}
-                  className={`w-full text-left px-4 py-2 text-xs flex items-center gap-3 hover:bg-brand-card transition-colors ${
-                    user?.email === demo.email ? 'bg-brand-forest/50 text-brand-emerald font-semibold' : 'text-text-secondary'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-md bg-brand-forest text-brand-emerald font-bold text-[10px] flex items-center justify-center">
-                    {demo.avatar}
-                  </div>
-                  <div className="overflow-hidden flex-1">
-                    <p className="truncate text-xs text-text-primary font-medium">{demo.name}</p>
-                    <p className="text-[10px] text-text-muted truncate">{demo.role} • {demo.subsidiary}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </header>

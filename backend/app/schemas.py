@@ -9,7 +9,10 @@ class UserBase(BaseModel):
     name: str
     role: str
     mine_id: Optional[int] = None
+    mine_name: Optional[str] = None
+    subsidiary: Optional[str] = None
     contractor_id: Optional[int] = None
+    permissions: Optional[List[str]] = []
 
 class UserResponse(UserBase):
     id: int
@@ -17,8 +20,16 @@ class UserResponse(UserBase):
         from_attributes = True
 
 class LoginRequest(BaseModel):
-    username: str
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = "demo"
     role: Optional[str] = None
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
 
 # --- Mine ---
 class MineBase(BaseModel):

@@ -22,7 +22,7 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { UnauthorizedPage } from '../pages/UnauthorizedPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
-// Protected Route Guard
+// 1. Protected Route Guard: Redirects unauthenticated traffic to /login
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
@@ -31,38 +31,55 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// 2. Public Only Route Guard: Redirects authenticated users from /login to /dashboard
+const PublicOnlyRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
 export const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public Route */}
-      <Route path="/login" element={<LoginPage />} />
+      {/* Root Route: Directly redirects to /login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Protected App Shell Routes */}
+      {/* Public Login Route */}
       <Route
-        path="/"
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+
+      {/* Protected Application Routes */}
+      <Route
         element={
           <ProtectedRoute>
             <AppShell />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="mines" element={<MinesPage />} />
-        <Route path="mines/:id" element={<MineDetailPage />} />
-        <Route path="violations" element={<ViolationsPage />} />
-        <Route path="violations/:id" element={<ViolationDetailPage />} />
-        <Route path="inspections" element={<InspectionsPage />} />
-        <Route path="corrective-actions" element={<CorrectiveActionsPage />} />
-        <Route path="gis" element={<GISMapPage />} />
-        <Route path="monitoring" element={<MonitoringPage />} />
-        <Route path="documents" element={<DocumentsPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="audit" element={<AuditTrailPage />} />
-        <Route path="ai" element={<AIAssistantPage />} />
-        <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/mines" element={<MinesPage />} />
+        <Route path="/mines/:id" element={<MineDetailPage />} />
+        <Route path="/violations" element={<ViolationsPage />} />
+        <Route path="/violations/:id" element={<ViolationDetailPage />} />
+        <Route path="/inspections" element={<InspectionsPage />} />
+        <Route path="/corrective-actions" element={<CorrectiveActionsPage />} />
+        <Route path="/gis" element={<GISMapPage />} />
+        <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/audit" element={<AuditTrailPage />} />
+        <Route path="/ai" element={<AIAssistantPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

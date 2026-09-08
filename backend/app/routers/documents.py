@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (
     Document, Mine, Regulation, Violation, Observation, RiskScore, CorrectiveAction,
-    SeverityEnum, ViolationStatusEnum
+    User, SeverityEnum, ViolationStatusEnum
 )
 from app.ocr_pipeline import process_document_ocr
 from app.ledger import record_audit_event
 from app.priority_engine import calculate_priority_score
+from app.core.dependencies import get_current_user, get_optional_current_user, get_authorized_mine_ids, verify_mine_access
 
 router = APIRouter(prefix="/api/documents", tags=["OCR Documents"])
 v1_router = APIRouter(prefix="/api/v1/documents", tags=["OCR Documents v1"])
@@ -57,42 +58,60 @@ def serialize_document(doc: Document, db: Session) -> dict:
                 "title": viol.title,
                 "severity": viol.severity,
                 "priority_score": viol.priority_score,
-                "status": viol.status,
-                "due_at": viol.due_at.isoformat() if viol.due_at else None
+                "status": viol.status
             }
+
+    bboxes = []
+    if doc.bounding_boxes_json:
+        try:
+            bboxes = json.loads(doc.bounding_boxes_json)
+        except Exception:
+            bboxes = []
 
     return {
         "id": doc.id,
         "mine_id": doc.mine_id,
-        "mine_name": mine.name if mine else (f"Mine ID {doc.mine_id}" if doc.mine_id else "Unassigned Mine"),
-        "mine_code": mine.mine_code if mine else "MINE-C",
-        "subsidiary": mine.subsidiary if mine else "NCL",
-        "document_type": doc.document_type or "PAPER_REGISTER_SCAN",
-        "file_name": getattr(doc, "file_name", "paper_register_scan.pdf") or "paper_register_scan.pdf",
-        "file_url": doc.file_url,
-        "file_hash": getattr(doc, "file_hash", "3f8b89c4a1e9e09d42f8c5b1b4a8e0f9c2d1e4a7b9c0d3e5f7a2b4c6e8d0f2a4"),
-        "page_count": getattr(doc, "page_count", 1) or 1,
-        "ocr_text": doc.ocr_text or "",
-        "ocr_confidence": round((doc.ocr_confidence or 0.0) if (doc.ocr_confidence or 0.0) > 1.0 else ((doc.ocr_confidence or 0.0) * 100.0), 1),
-        "extraction_confidence": round((doc.ocr_confidence or 92.0) if (doc.ocr_confidence or 92.0) > 1.0 else ((doc.ocr_confidence or 0.92) * 100.0), 1),
-        "matched_regulation_code": doc.matched_regulation_code,
-        "matched_regulation": matched_reg_info,
+        "mine_name": mine.name if mine else f"Mine #{doc.mine_id}",
+        "subsidiary": mine.subsidiary if mine else "N/A",
+        "doc_type": doc.document_type,
+        "file_name": doc.file_name,
+        "file_size": doc.file_size or 245760,
+        "file_hash": doc.file_hash,
+        "ocr_confidence": doc.ocr_confidence,
+        "extraction_confidence": doc.extraction_confidence,
+        "processing_status": doc.processing_status,
+        "uploaded_by_name": doc.uploaded_by_name,
+        "uploaded_by_role": doc.uploaded_by_role,
+        "verification_status": doc.verification_status,
+        "verified_by_name": doc.verified_by_name,
+        "verified_by_role": doc.verified_by_role,
+        "verified_at": doc.verified_at.isoformat() if doc.verified_at else None,
+        "created_at": doc.created_at.isoformat() if doc.created_at else None,
         "extracted_fields": fields,
-        "compliance_insight": getattr(doc, "compliance_insight", None) or "Potentially relevant regulatory requirement identified. Human verification required before creating an official compliance violation.",
-        "processing_status": doc.processing_status or "REVIEW_REQUIRED",
-        "verified_by": getattr(doc, "verified_by", None),
-        "verified_at": getattr(doc, "verified_at", None).isoformat() if getattr(doc, "verified_at", None) else None,
-        "review_notes": getattr(doc, "review_notes", None),
+        "matched_regulation": matched_reg_info,
         "linked_violation": linked_viol,
-        "created_at": doc.created_at.isoformat() if doc.created_at else datetime.datetime.utcnow().isoformat()
+        "bounding_boxes": bboxes
     }
 
 @router.get("")
 @v1_router.get("")
-def list_documents(mine_id: Optional[int] = None, status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_documents(
+    mine_id: Optional[int] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     query = db.query(Document)
-    if mine_id:
+
+    # Apply data scoping
+    allowed_mine_ids = get_authorized_mine_ids(current_user, db)
+    if allowed_mine_ids is not None:
+        if mine_id and mine_id not in allowed_mine_ids:
+            return []
+        query = query.filter(Document.mine_id.in_(allowed_mine_ids))
+    elif mine_id:
         query = query.filter(Document.mine_id == mine_id)
+
     if status and status != "ALL":
         query = query.filter(Document.processing_status == status)
 
@@ -101,8 +120,16 @@ def list_documents(mine_id: Optional[int] = None, status: Optional[str] = None, 
 
 @router.get("/summary")
 @v1_router.get("/summary")
-def get_documents_summary(db: Session = Depends(get_db)):
-    docs = db.query(Document).all()
+def get_documents_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Document)
+    allowed_mine_ids = get_authorized_mine_ids(current_user, db)
+    if allowed_mine_ids is not None:
+        query = query.filter(Document.mine_id.in_(allowed_mine_ids))
+
+    docs = query.all()
     total = len(docs)
     processing = sum(1 for d in docs if d.processing_status in ["PROCESSING", "UPLOADED"])
     review_req = sum(1 for d in docs if d.processing_status in ["REVIEW_REQUIRED", "MANUAL_REVIEW_REQUIRED", "EXTRACTION_COMPLETED"])
@@ -126,10 +153,18 @@ def get_documents_summary(db: Session = Depends(get_db)):
 
 @router.get("/{doc_id}")
 @v1_router.get("/{doc_id}")
-def get_document_by_id(doc_id: int, db: Session = Depends(get_db)):
+def get_document_by_id(
+    doc_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db)
+):
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document #{doc_id} not found")
+
+    if doc.mine_id:
+        verify_mine_access(doc.mine_id, current_user, db)
+
     return serialize_document(doc, db)
 
 @router.post("/upload")
@@ -138,8 +173,14 @@ async def upload_document(
     file: UploadFile = File(...),
     mine_id: int = Form(3), # Default to Mine C
     document_type: str = Form("PAPER_REGISTER_SCAN"),
+    uploaded_by_name: str = Form("Rajesh Kumar (Field Inspector)"),
+    uploaded_by_role: str = Form("INSPECTOR"),
+    background_tasks: BackgroundTasks = None,
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
+    verify_mine_access(mine_id, current_user, db)
+
     # 1. Validate File Extension
     ext = os.path.splitext(file.filename)[1].lower() if file.filename else ".pdf"
     if ext not in ALLOWED_EXTENSIONS:

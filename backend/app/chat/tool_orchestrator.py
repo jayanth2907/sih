@@ -71,11 +71,29 @@ def execute_chat_tool_orchestrator(
             "sources": ["Security Policy Daemon"]
         }
 
+    # Pre-query Mine Target RBAC Scope Check
+    target_mine_attempt = resolve_mine_target(message, db)
+    if target_mine_attempt and user_role in ["MINE_OFFICER", "INSPECTOR"] and user_mine_id and target_mine_attempt.id != user_mine_id:
+        assigned_mine = db.query(Mine).filter(Mine.id == user_mine_id).first()
+        assigned_name = assigned_mine.name if assigned_mine else f"Mine #{user_mine_id}"
+        return {
+            "query": message,
+            "language": language,
+            "intent": "ACCESS_DENIED",
+            "tool_used": "rbac_guardrail",
+            "answer": f"Access Restricted: You are not authorized to query records for {target_mine_attempt.name} ({target_mine_attempt.mine_code}). Your operational scope is strictly bounded to {assigned_name}.",
+            "citations": ["Role-Based Access Control", "CMR 2017 Data Isolation"],
+            "action_links": [{"label": f"View {assigned_name}", "path": f"/mines/{user_mine_id}"}],
+            "sources": ["RBAC Enforcement Daemon"],
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+
     # 1. Critical Mines / Priority Attention
     if any(k in lower for k in ["critical mine", "immediate attention", "risky mine", "top risk", "highest risk", "उल्लंघन", "गंभीर"]):
         tool_used = "get_critical_mines"
         if not validate_tool_request(tool_used, user_role, None, user_mine_id):
             return {"answer": "Access Restricted: You do not have permission to query enterprise-wide critical mine data.", "citations": []}
+
 
         critical_mines = db.query(Mine).filter(Mine.risk_score >= 50).order_by(Mine.risk_score.desc()).all()
         if not critical_mines:
