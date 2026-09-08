@@ -22,5 +22,13 @@ export const analyticsService = {
       url += `&mine_id=${mineId}`;
     }
     return url;
+  },
+  getFleetTrend: async () => {
+    const response = await api.get('/api/analytics/fleet-trend');
+    return response.data;
+  },
+  getReportingCadence: async () => {
+    const response = await api.get('/api/analytics/reporting-cadence');
+    return response.data;
   }
 };

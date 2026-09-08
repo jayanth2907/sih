@@ -1,16 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ShieldAlert } from 'lucide-react';
+import { dashboardService } from '../../services/dashboardService';
 
-const DATA = [
-  { name: 'Critical', value: 12, color: '#F43F5E' },
-  { name: 'High', value: 38, color: '#F97316' },
-  { name: 'Medium', value: 52, color: '#EAB308' },
-  { name: 'Low', value: 35, color: '#22C55E' },
+const DEFAULT_DATA = [
+  { name: 'Critical', value: 0, color: '#F43F5E' },
+  { name: 'High', value: 0, color: '#F97316' },
+  { name: 'Medium', value: 0, color: '#EAB308' },
+  { name: 'Low', value: 0, color: '#22C55E' },
 ];
 
 export const ComplianceDonutChart = () => {
-  const total = DATA.reduce((acc, curr) => acc + curr.value, 0);
+  const [data, setData] = useState(DEFAULT_DATA);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchBreakdown = async () => {
+      try {
+        const res = await dashboardService.getSummary();
+        if (mounted && res && res.severity_breakdown) {
+          setData(res.severity_breakdown);
+          const computedTotal = res.severity_breakdown.reduce((acc, curr) => acc + curr.value, 0);
+          setTotal(computedTotal);
+        }
+      } catch (err) {
+        console.error('Failed to load compliance summary:', err);
+      }
+    };
+    fetchBreakdown();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const chartData = total > 0 ? data : [{ name: 'No Violations', value: 1, color: '#334155' }];
 
   return (
     <div className="bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col justify-between shadow-sm h-full">
@@ -22,7 +46,7 @@ export const ComplianceDonutChart = () => {
           </div>
           <h3 className="text-sm font-bold text-text-primary">Compliance Analytics</h3>
         </div>
-        <span className="text-[10px] text-text-muted">This Month</span>
+        <span className="text-[10px] text-text-muted">Live Status</span>
       </div>
 
       {/* Chart & Center Stat */}
@@ -32,16 +56,16 @@ export const ComplianceDonutChart = () => {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={DATA}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={44}
                 outerRadius={62}
-                paddingAngle={3}
+                paddingAngle={total > 0 ? 3 : 0}
                 dataKey="value"
                 stroke="none"
               >
-                {DATA.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -58,7 +82,7 @@ export const ComplianceDonutChart = () => {
 
         {/* Legend Breakdown */}
         <div className="space-y-2 flex-1 pl-2">
-          {DATA.map((item, idx) => (
+          {data.map((item, idx) => (
             <div key={idx} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -72,3 +96,4 @@ export const ComplianceDonutChart = () => {
     </div>
   );
 };
+

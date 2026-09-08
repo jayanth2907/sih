@@ -19,14 +19,20 @@ export const violationService = {
     return response.data;
   },
   updateStatus: async (id, status) => {
-    // Calls resolve if closing or simulates state transition
-    if (status === 'CLOSED' || status === 'RESOLVED') {
-      try {
-        return await violationService.resolveViolation(id);
-      } catch (e) {
-        return { status: 'SUCCESS' };
-      }
-    }
-    return { status: 'SUCCESS' };
+    return await violationService.transitionStatus(id, status);
+  },
+  transitionStatus: async (id, targetState, notes = "") => {
+    const response = await api.patch(`/api/violations/${id}/status`, {
+      target_state: targetState,
+      notes: notes
+    });
+    return response.data;
+  },
+  getCorrectiveActions: async (violationId = null) => {
+    const url = violationId
+      ? `/api/violations/${violationId}/corrective-actions`
+      : `/api/violations/corrective-actions`;
+    const response = await api.get(url);
+    return response.data;
   }
 };

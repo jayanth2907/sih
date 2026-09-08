@@ -33,6 +33,8 @@ def setup_test_database():
     app.dependency_overrides[get_db] = _override_get_db
     yield db
     db.close()
+    Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.pop(get_db, None)
 
 client = TestClient(app)
 

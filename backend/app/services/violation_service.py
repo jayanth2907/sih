@@ -30,15 +30,23 @@ def transition_violation_state(
         raise RecordNotFoundException(f"Violation ID {violation_id} not found.")
 
     current_state = violation.status
-    allowed_next = VALID_TRANSITIONS.get(current_state, [])
+    current_val = current_state.value if hasattr(current_state, "value") else str(current_state)
+    target_val = target_state.value if hasattr(target_state, "value") else str(target_state)
 
-    if target_state not in allowed_next and target_state != ViolationStatusEnum.CLOSED and current_state != ViolationStatusEnum.OPEN:
+    allowed_next = []
+    for k, v in VALID_TRANSITIONS.items():
+        k_val = k.value if hasattr(k, "value") else str(k)
+        if k_val == current_val:
+            allowed_next = [s.value if hasattr(s, "value") else str(s) for s in v]
+            break
+
+    if target_val not in allowed_next and target_val != "CLOSED" and current_val != "OPEN":
         raise InvalidStateTransitionException(
-            f"Invalid state transition from '{current_state}' to '{target_state}'. "
-            f"Allowed transitions from '{current_state}': {[s.value if hasattr(s, 'value') else s for s in allowed_next]}."
+            f"Invalid state transition from '{current_val}' to '{target_val}'. "
+            f"Allowed transitions from '{current_val}': {allowed_next}."
         )
 
-    violation.status = target_state
+    violation.status = target_val
     db.commit()
     db.refresh(violation)
 
