@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #06110F;
+    --bg-secondary: #081815;
+    --bg-surface: #0D211C;
+    --bg-card: #102821;
+    --bg-card-hover: #15332b;
+    --border-color: #1D3A32;
+    --accent-emerald: #10B981;
+    --accent-teal: #14B8A6;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+  }
+
+  body {
+    background-color: #06110F;
+    color: #F8FAFC;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #081815;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1D3A32;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #10B981;
+}
+
+/* Glassmorphism & Industrial Components */
+.glass-panel {
+  background: rgba(16, 40, 33, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(29, 58, 50, 0.8);
+}
+
+.glass-card {
+  background: #102821;
+  border: 1px solid #1D3A32;
+  border-radius: 16px;
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-card:hover {
+  border-color: #2a5348;
+}
+
+/* Custom Pulse Animation */
+@keyframes soft-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 3s infinite ease-in-out;
+}
+
+/* Shimmer Skeleton */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #0D211C 25%, #15332b 50%, #0D211C 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+/* Leaflet Dark Map Tile Inversion & Marker styling */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #081815 !important;
+  font-family: 'Inter', sans-serif !important;
+  border-radius: 14px;
+}
+
+.dark-tiles .leaflet-tile {
+  filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.custom-mine-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-pulse-critical {
+  box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+  animation: marker-pulse-red 2s infinite;
+}
+
+@keyframes marker-pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(244, 63, 94, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
