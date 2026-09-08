@@ -322,7 +322,7 @@ export const AnalyticsPage = () => {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analyticsData?.risk_trajectory || []} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+              <LineChart data={analyticsData?.risk_trajectory || analyticsData?.risk_trajectories || []} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1D3A32" opacity={0.5} />
                 <XAxis dataKey="label" stroke="#64748B" fontSize={11} tickLine={false} />
                 <YAxis stroke="#64748B" fontSize={11} domain={[10, 100]} tickLine={false} />

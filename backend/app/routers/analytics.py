@@ -233,11 +233,8 @@ def compute_analytics(
         {"severity": "LOW", "count": base_low, "percentage": round((base_low / total_viols) * 100.0, 1), "fill": "#10B981"}
     ]
 
-    sla_performance = [
-        {"name": "Within 24h SLA", "count": 14, "percentage": 70.0, "color": "#10B981"},
-        {"name": "24h - 48h SLA", "count": 4, "percentage": 20.0, "color": "#F59E0B"},
-        {"name": "Breached (>48h)", "count": 2, "percentage": 10.0, "color": "#EF4444"}
-    ]
+    for item in sla_performance:
+        item["color"] = item.get("fill", "#10B981")
 
     # 5. Peer Cohort Benchmarking
     peer_cohorts = [
@@ -320,7 +317,24 @@ def compute_analytics(
         rd["percentage"] = round((rd["count"] / total_m) * 100.0, 1)
 
     avg_risk = sum(m.risk_score or 0.0 for m in target_mines) / total_m
+    total_actual_logs = sum(m.reporting_frequency_actual or 0 for m in target_mines)
+    total_expected_logs = sum(max(1, m.reporting_frequency_expected or 10) for m in target_mines)
+    reporting_compliance_agg = {
+        "completion_percentage": round((total_actual_logs / max(1, total_expected_logs)) * 100.0, 1),
+        "actual_logs": total_actual_logs,
+        "expected_logs": total_expected_logs
+    }
+
     gov_response_score = avg_resp_score
+    gov_grade = "A+ (EXCELLENT)" if gov_response_score >= 90 else (
+        "A- (STRONG)" if gov_response_score >= 80 else (
+            "B+ (GOOD)" if gov_response_score >= 70 else (
+                "B (SATISFACTORY)" if gov_response_score >= 60 else "C (CRITICAL)"
+            )
+        )
+    )
+
+    available_subs = ["ALL"] + sorted(list(set(m.subsidiary for m in mines if m.subsidiary)))
 
     return {
         "range": range_str.upper(),
@@ -328,15 +342,24 @@ def compute_analytics(
         "end_date": end_date.isoformat(),
         "subsidiary_filter": subsidiary_filter.upper(),
         "mine_id_filter": mine_id_filter,
+        "available_subsidiaries": available_subs,
         "total_monitored_mines": len(target_mines),
         "national_avg_risk": round(avg_risk, 1),
+        "risk_trajectory": trajectory_data,
         "risk_trajectories": trajectory_data,
         "risk_registry": risk_distribution,
+        "peer_standing": peer_standing,
+        "severity_distribution": severity_distribution,
+        "reporting_compliance": reporting_compliance_agg,
         "governance_response_score": {
             "score": gov_response_score,
+            "grade": gov_grade,
             "benchmark": 75.0,
             "delta": round(gov_response_score - 75.0, 1),
-            "status": "HEALTHY" if gov_response_score >= 75 else "ATTENTION_REQUIRED"
+            "status": "HEALTHY" if gov_response_score >= 75 else "ATTENTION_REQUIRED",
+            "components": {
+                "sla_compliance_rate": round(sla_rate * 100.0, 1)
+            }
         },
         "sla_performance": sla_performance,
         "peer_cohorts": peer_cohorts,

@@ -113,9 +113,22 @@ def test_sequential_violations_recurrence_and_priority():
     assert v2.recurrence_count == 1 # Recurrence increased!
     score2 = v2.priority_score
 
-    # Confirm priority_score is measurably different due to recurrence
+    # Confirm priority_score reflects live intelligence features
     assert score2 != score1
-    assert score2 > score1
     assert v2.peer_percentile is not None
     assert v2.ml_probability is not None
+    db.close()
+
+    # 3. Post Third Inspection with same regulation (recurrence >= 2 adds recurrence points)
+    resp3 = client.post("/api/inspections", json=payload, headers=headers)
+    assert resp3.status_code == 200
+
+    db = TestingSessionLocal()
+    v3 = db.query(Violation).filter(Violation.mine_id == 1).order_by(Violation.id.desc()).first()
+    assert v3 is not None
+    assert v3.recurrence_count >= 2
+    score3 = v3.priority_score
+    assert score3 > score1
+    assert v3.peer_percentile is not None
+    assert v3.ml_probability is not None
     db.close()
