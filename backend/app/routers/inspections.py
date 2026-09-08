@@ -90,22 +90,65 @@ def create_inspection(
             sla_hrs = reg.response_sla_hours if reg else 48
 
             v_code = f"VIOL-{datetime.datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+
+            # 1. Compute real DB-backed features
+            from app.services.feature_service import (
+                get_recurrence_count,
+                get_inspection_gap_days,
+                get_open_violation_count,
+                get_site_violation_rate,
+                get_reporting_drift,
+                get_external_discrepancy
+            )
+            from app.priority.fusion import run_full_intelligence_pipeline
+
+            rec_count = get_recurrence_count(db, payload.mine_id, obs_item.regulation_id)
+            gap_days = get_inspection_gap_days(db, payload.mine_id)
+            open_count = get_open_violation_count(db, payload.mine_id)
+            site_rate = get_site_violation_rate(db, payload.mine_id)
+            rep_drift = get_reporting_drift(db, payload.mine_id)
+            ext_disc = get_external_discrepancy(db, payload.mine_id)
+
+            # 2. Run Central Intelligence Pipeline
+            fusion_res = run_full_intelligence_pipeline(
+                severity=obs_item.severity,
+                recurrence_count=rec_count,
+                overdue_days=gap_days,
+                open_count=open_count,
+                mine_risk_score=mine.risk_score if mine else 50.0,
+                reporting_drift=rep_drift,
+                external_discrepancy=ext_disc,
+                mine_id=payload.mine_id,
+                db=db,
+                site_violation_rate=site_rate
+            )
+
+            is_critical = fusion_res.get("risk_class") == "CRITICAL"
+            ml_prob = fusion_res.get("layers", {}).get("layer3_ml", {}).get("risk_probability", 0.50)
+            peer_pct = fusion_res.get("layers", {}).get("layer2_peer", {}).get("peer_percentile", 50.0)
+
             violation = Violation(
                 violation_code=v_code,
                 observation_id=obs.id,
                 mine_id=payload.mine_id,
                 regulation_id=obs_item.regulation_id,
                 severity=obs_item.severity,
-                status=ViolationStatusEnum.OPEN,
+                status=ViolationStatusEnum.ESCALATED if is_critical else ViolationStatusEnum.OPEN,
                 title=f"Non-Compliance: {reg_title}",
                 description=obs_item.description,
+                priority_score=fusion_res.get("unified_score", 50.0),
+                ml_probability=ml_prob,
+                recurrence_count=rec_count,
+                peer_percentile=peer_pct,
+                reporting_drift=rep_drift,
+                external_discrepancy=ext_disc,
                 due_at=datetime.datetime.utcnow() + datetime.timedelta(hours=sla_hrs),
-                is_escalated=False
+                is_escalated=is_critical
             )
             db.add(violation)
             db.commit()
 
-            # Record Audit Event
+            # Record Audit Event with SHAP / Explainability breakdown
             record_audit_event(
                 db,
                 entity_type="Violation",
@@ -117,7 +160,11 @@ def create_inspection(
                     "violation_code": v_code,
                     "mine_name": mine.name,
                     "regulation": reg_code,
-                    "severity": obs_item.severity
+                    "severity": obs_item.severity,
+                    "priority_score": fusion_res.get("unified_score"),
+                    "risk_class": fusion_res.get("risk_class"),
+                    "recurrence_count": rec_count,
+                    "shap_explanation": fusion_res.get("layers", {}).get("layer4_shap")
                 }
             )
 

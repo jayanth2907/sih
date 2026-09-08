@@ -1,11 +1,30 @@
 import math
 
-def calculate_mine_peer_percentile(mine_risk_score: float, peer_scores: list[float] = None) -> dict:
+def calculate_mine_peer_percentile(
+    mine_risk_score: float,
+    peer_scores: list[float] = None,
+    mine_id: int = None,
+    db = None
+) -> dict:
     """
     Layer 2 - Peer Benchmarking
     Calculates mine percentile ranking relative to comparable peer mines.
+    Populates peer_scores from live DB query when db/mine_id provided and peers >= 3,
+    falling back to historical benchmark baseline.
     """
-    if not peer_scores:
+    if peer_scores is None and db is not None and mine_id is not None:
+        from app.models import Mine
+        mine = db.query(Mine).filter(Mine.id == mine_id).first()
+        if mine:
+            peers = db.query(Mine.risk_score).filter(
+                Mine.id != mine_id,
+                (Mine.mine_type == mine.mine_type) | (Mine.subsidiary == mine.subsidiary)
+            ).all()
+            queried = [p[0] for p in peers if p[0] is not None]
+            if len(queried) >= 3:
+                peer_scores = queried
+
+    if not peer_scores or len(peer_scores) < 3:
         # Benchmark baseline scores across CIL open-cast mines
         peer_scores = [15.0, 18.0, 22.0, 28.0, 35.0, 42.0, 62.0, 78.5, 84.2, 94.5]
 

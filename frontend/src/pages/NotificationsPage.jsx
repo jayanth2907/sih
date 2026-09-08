@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, AlertCircle, Clock, AlertTriangle, FileCheck, ShieldCheck, Check, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import api from '../services/api';
 
-const NOTIFICATION_LIST = [
+const DEFAULT_NOTIFICATIONS = [
   {
     id: 1,
     title: "Critical Risk Escalation: Mine C (Singrauli)",
@@ -52,10 +53,38 @@ const NOTIFICATION_LIST = [
 ];
 
 export const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState(NOTIFICATION_LIST);
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState('ALL');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get('/api/notifications');
+        if (mounted) {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setNotifications(res.data);
+          } else {
+            setNotifications(DEFAULT_NOTIFICATIONS);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load notifications:', err);
+        if (mounted) {
+          setNotifications(DEFAULT_NOTIFICATIONS);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchNotifications();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleMarkAllAsRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
@@ -110,32 +139,44 @@ export const NotificationsPage = () => {
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => navigate(item.link)}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer hover:border-brand-emerald/40 shadow-sm flex items-start gap-4 ${
-              item.unread ? 'bg-brand-card border-brand-border' : 'bg-brand-surface/40 border-brand-border/40 opacity-75'
-            }`}
-          >
-            <div className="mt-1">
-              {item.category === 'CRITICAL_RISK' && <AlertCircle className="w-5 h-5 text-status-critical" />}
-              {item.category === 'SLA_BREACH' && <Clock className="w-5 h-5 text-amber-400" />}
-              {item.category === 'MONITORING' && <AlertTriangle className="w-5 h-5 text-brand-teal" />}
-              {item.category === 'OCR' && <FileCheck className="w-5 h-5 text-brand-emerald" />}
-              {item.category === 'AUDIT' && <ShieldCheck className="w-5 h-5 text-sky-400" />}
-            </div>
-
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-bold text-text-primary">{item.title}</h3>
-                <span className="text-[10px] font-mono text-text-muted">{item.timestamp}</span>
-              </div>
-              <p className="text-xs text-text-secondary leading-relaxed">{item.message}</p>
-            </div>
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center bg-brand-card border border-brand-border rounded-2xl">
+            <Check className="w-8 h-8 text-brand-emerald mx-auto mb-2 opacity-80" />
+            <p className="text-sm font-semibold text-text-primary">No notifications found</p>
+            <p className="text-xs text-text-muted mt-1">All compliance alerts and SLA items are up to date.</p>
           </div>
-        ))}
+        ) : (
+          filtered.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => navigate(item.link || '/violations')}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer hover:border-brand-emerald/40 shadow-sm flex items-start gap-4 ${
+                item.unread ? 'bg-brand-card border-brand-border' : 'bg-brand-surface/40 border-brand-border/40 opacity-75'
+              }`}
+            >
+              <div className="mt-1">
+                {item.category === 'CRITICAL_RISK' && <AlertCircle className="w-5 h-5 text-status-critical" />}
+                {item.category === 'SLA_BREACH' && <Clock className="w-5 h-5 text-amber-400" />}
+                {item.category === 'MONITORING' && <AlertTriangle className="w-5 h-5 text-brand-teal" />}
+                {item.category === 'OCR' && <FileCheck className="w-5 h-5 text-brand-emerald" />}
+                {item.category === 'AUDIT' && <ShieldCheck className="w-5 h-5 text-sky-400" />}
+                {!['CRITICAL_RISK', 'SLA_BREACH', 'MONITORING', 'OCR', 'AUDIT'].includes(item.category) && (
+                  <Bell className="w-5 h-5 text-brand-emerald" />
+                )}
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-bold text-text-primary">{item.title}</h3>
+                  <span className="text-[10px] font-mono text-text-muted">{item.timestamp}</span>
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">{item.message}</p>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 };
+

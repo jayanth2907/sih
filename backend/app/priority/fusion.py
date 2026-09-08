@@ -11,13 +11,16 @@ def run_full_intelligence_pipeline(
     mine_risk_score: float,
     reporting_drift: float,
     external_discrepancy: bool,
-    model_version: str = "risk-model-v1"
+    model_version: str = "risk-model-v1",
+    mine_id: int = None,
+    db = None,
+    site_violation_rate: float = None
 ) -> dict:
     """
     Complete 5-Layer Intelligence Engine Fusion Pipeline
     Layer 1: Deterministic Rules
     Layer 2: Peer Benchmarking
-    Layer 3: Tabular ML Classifier (XGBoost)
+    Layer 3: Tabular ML Classifier (XGBoost / HistGB)
     Layer 4: SHAP Explainability
     Layer 5: Unified Priority Score
     """
@@ -27,15 +30,17 @@ def run_full_intelligence_pipeline(
     rule_score = rule_res["rule_score"]
 
     # 2. Layer 2 Peer Percentile
-    peer_res = calculate_mine_peer_percentile(mine_risk_score)
+    peer_res = calculate_mine_peer_percentile(mine_risk_score, mine_id=mine_id, db=db)
     peer_pct = peer_res["peer_percentile"]
 
     # 3. Layer 3 ML Classifier
     sev_num = 4 if severity == "CRITICAL" else 3 if severity == "HIGH" else 2 if severity == "MEDIUM" else 1
+    computed_site_rate = site_violation_rate if site_violation_rate is not None else round(open_count / max(open_count + 1, 1), 2)
     ml_features = {
         "severity_num": sev_num,
         "recurrence_count": recurrence_count,
         "inspection_gap_days": overdue_days,
+        "site_violation_rate": computed_site_rate,
         "peer_percentile": peer_pct,
         "reporting_drift": reporting_drift,
         "open_violation_count": open_count,

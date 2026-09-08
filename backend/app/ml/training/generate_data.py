@@ -1,4 +1,6 @@
 import random
+import math
+import datetime
 
 def generate_synthetic_governance_dataset(num_records: int = 1000) -> list[dict]:
     """
@@ -19,12 +21,24 @@ def generate_synthetic_governance_dataset(num_records: int = 1000) -> list[dict]
         drift = round(random.uniform(0.0, 0.9), 2)
         ext_disc = 1 if random.random() < 0.25 else 0
 
-        # Calculate target priority class (0=LOW/MED, 1=HIGH/CRITICAL)
-        score = (0.25 * severity * 25) + (0.25 * recurrence * 12) + (0.15 * gap_days * 5) + (0.10 * peer_pct) + (0.15 * drift * 100) + (0.10 * ext_disc * 100)
-        target = 1 if score >= 60.0 else 0
+        # Calculate target priority class (0=LOW/MED, 1=HIGH/CRITICAL) via calibrated risk logit
+        logit = (
+            0.40 * severity +
+            0.45 * recurrence +
+            0.06 * gap_days +
+            0.04 * open_cases +
+            0.02 * peer_pct +
+            1.60 * drift +
+            1.30 * ext_disc -
+            3.60
+        )
+        prob = 1.0 / (1.0 + math.exp(-logit))
+        target = 1 if prob >= 0.50 else 0
 
+        timestamp = (datetime.datetime(2025, 1, 1) + datetime.timedelta(hours=i * 6)).isoformat()
         dataset.append({
             "record_id": f"REC-{i+1:04d}",
+            "timestamp": timestamp,
             "mine_id": random.randint(1, 10),
             "mine_type": random.choice(mine_types),
             "severity": severity,

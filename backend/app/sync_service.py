@@ -69,19 +69,44 @@ def process_mobile_batch_sync(db: Session, batch_payload: dict) -> dict:
             if obs_data.get("is_violation", True):
                 reg = db.query(Regulation).filter(Regulation.id == reg_id).first()
                 reg_title = reg.title if reg else "Safety Compliance Requirement"
+                sla_hrs = reg.response_sla_hours if reg else 24
 
                 v_code = f"VIOL-MOBILE-{datetime.datetime.utcnow().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
 
-                # Trigger Phase 3 Central Intelligence Engine
+                # 1. Compute real DB-backed features
+                from app.services.feature_service import (
+                    get_recurrence_count,
+                    get_inspection_gap_days,
+                    get_open_violation_count,
+                    get_site_violation_rate,
+                    get_reporting_drift,
+                    get_external_discrepancy
+                )
+
+                rec_count = get_recurrence_count(db, mine_id, reg_id)
+                gap_days = get_inspection_gap_days(db, mine_id)
+                open_count = get_open_violation_count(db, mine_id)
+                site_rate = get_site_violation_rate(db, mine_id)
+                rep_drift = get_reporting_drift(db, mine_id)
+                ext_disc = get_external_discrepancy(db, mine_id)
+
+                # 2. Trigger Phase 3 Central Intelligence Engine
                 intel_res = run_full_intelligence_pipeline(
                     severity=severity,
-                    recurrence_count=3,
-                    overdue_days=8,
-                    open_count=5,
+                    recurrence_count=rec_count,
+                    overdue_days=gap_days,
+                    open_count=open_count,
                     mine_risk_score=mine.risk_score if mine else 50.0,
-                    reporting_drift=0.50,
-                    external_discrepancy=False
+                    reporting_drift=rep_drift,
+                    external_discrepancy=ext_disc,
+                    mine_id=mine_id,
+                    db=db,
+                    site_violation_rate=site_rate
                 )
+
+                is_critical = intel_res.get("risk_class") == "CRITICAL"
+                ml_prob = intel_res.get("layers", {}).get("layer3_ml", {}).get("risk_probability", 0.50)
+                peer_pct = intel_res.get("layers", {}).get("layer2_peer", {}).get("peer_percentile", 50.0)
 
                 violation = Violation(
                     violation_code=v_code,
@@ -89,13 +114,17 @@ def process_mobile_batch_sync(db: Session, batch_payload: dict) -> dict:
                     mine_id=mine_id,
                     regulation_id=reg_id,
                     severity=severity,
-                    status=ViolationStatusEnum.OPEN,
+                    status=ViolationStatusEnum.ESCALATED if is_critical else ViolationStatusEnum.OPEN,
                     title=f"Mobile Flagged Non-Compliance: {reg_title}",
                     description=obs_data.get("description", "Offline field non-compliance finding."),
-                    priority_score=intel_res["unified_score"],
-                    ml_probability=0.88,
-                    due_at=datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-                    is_escalated=False
+                    priority_score=intel_res.get("unified_score", 50.0),
+                    ml_probability=ml_prob,
+                    recurrence_count=rec_count,
+                    peer_percentile=peer_pct,
+                    reporting_drift=rep_drift,
+                    external_discrepancy=ext_disc,
+                    due_at=datetime.datetime.utcnow() + datetime.timedelta(hours=sla_hrs),
+                    is_escalated=is_critical
                 )
                 db.add(violation)
                 db.commit()

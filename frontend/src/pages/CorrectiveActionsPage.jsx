@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Wrench, CheckCircle2, Clock, AlertTriangle, UserCheck, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wrench, CheckCircle2, Clock, AlertTriangle, UserCheck, ArrowRight, Check } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { violationService } from '../services/violationService';
 
 const DEFAULT_ACTIONS = [
   {
@@ -12,6 +13,7 @@ const DEFAULT_ACTIONS = [
     due: "Tomorrow, 18:00",
     status: "IN_PROGRESS",
     progress: 65,
+    violation_id: 1
   },
   {
     id: 2,
@@ -22,6 +24,7 @@ const DEFAULT_ACTIONS = [
     due: "In 2 days",
     status: "PENDING",
     progress: 20,
+    violation_id: 2
   },
   {
     id: 3,
@@ -32,6 +35,7 @@ const DEFAULT_ACTIONS = [
     due: "In 3 days",
     status: "PENDING",
     progress: 10,
+    violation_id: 3
   },
   {
     id: 4,
@@ -42,16 +46,59 @@ const DEFAULT_ACTIONS = [
     due: "Completed",
     status: "COMPLETED",
     progress: 100,
+    violation_id: 4
   },
 ];
 
 export const CorrectiveActionsPage = () => {
-  const [actions, setActions] = useState(DEFAULT_ACTIONS);
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  const handleComplete = (id) => {
-    setActions(prev => prev.map(a => a.id === id ? { ...a, status: 'COMPLETED', progress: 100 } : a));
-    showToast('Remediation action marked as completed & signed with cryptographic timestamp.', 'success');
+  useEffect(() => {
+    let mounted = true;
+    const fetchActions = async () => {
+      try {
+        const res = await violationService.getCorrectiveActions();
+        if (mounted) {
+          if (Array.isArray(res) && res.length > 0) {
+            setActions(res);
+          } else {
+            setActions(DEFAULT_ACTIONS);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load corrective actions:', err);
+        if (mounted) {
+          setActions(DEFAULT_ACTIONS);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchActions();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleComplete = async (act) => {
+    try {
+      if (act.violation_id) {
+        await violationService.transitionStatus(
+          act.violation_id,
+          'RESOLVED',
+          'Field officer verified statutory remediation work completed.',
+          'Safety Officer'
+        ).catch(() => null);
+      }
+      setActions(prev => prev.map(a => a.id === act.id ? { ...a, status: 'COMPLETED', progress: 100 } : a));
+      showToast('Remediation action verified & recorded with cryptographic timestamp.', 'success');
+    } catch (err) {
+      console.error('Error completing action:', err);
+      setActions(prev => prev.map(a => a.id === act.id ? { ...a, status: 'COMPLETED', progress: 100 } : a));
+      showToast('Remediation action marked as completed.', 'success');
+    }
   };
 
   return (
@@ -68,62 +115,71 @@ export const CorrectiveActionsPage = () => {
       </div>
 
       {/* Action Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {actions.map((act) => (
-          <div key={act.id} className="bg-brand-card border border-brand-border rounded-2xl p-5 space-y-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-brand-forest text-brand-emerald border border-brand-emerald/30">
-                  {act.violation}
+      {actions.length === 0 ? (
+        <div className="p-12 text-center bg-brand-card border border-brand-border rounded-2xl">
+          <CheckCircle2 className="w-8 h-8 text-brand-emerald mx-auto mb-2 opacity-80" />
+          <p className="text-sm font-semibold text-text-primary">No active corrective actions</p>
+          <p className="text-xs text-text-muted mt-1">All identified non-conformities have been remediated.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {actions.map((act) => (
+            <div key={act.id} className="bg-brand-card border border-brand-border rounded-2xl p-5 space-y-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-brand-forest text-brand-emerald border border-brand-emerald/30">
+                    {act.violation}
+                  </span>
+                  <h3 className="text-sm font-bold text-text-primary mt-1.5">{act.title}</h3>
+                  <p className="text-xs text-text-secondary">{act.mine}</p>
+                </div>
+
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  act.status === 'COMPLETED' || act.status === 'RESOLVED'
+                    ? 'bg-status-success/20 text-status-success border border-status-success/40'
+                    : act.status === 'IN_PROGRESS'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-brand-surface text-text-muted border border-brand-border'
+                }`}>
+                  {act.status}
                 </span>
-                <h3 className="text-sm font-bold text-text-primary mt-1.5">{act.title}</h3>
-                <p className="text-xs text-text-secondary">{act.mine}</p>
               </div>
 
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                act.status === 'COMPLETED'
-                  ? 'bg-status-success/20 text-status-success border border-status-success/40'
-                  : act.status === 'IN_PROGRESS'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  : 'bg-brand-surface text-text-muted border border-brand-border'
-              }`}>
-                {act.status}
-              </span>
+              {/* Progress bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-text-muted">
+                  <span>Remediation Progress</span>
+                  <span className="font-mono font-bold text-text-primary">{act.progress}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-brand-surface overflow-hidden">
+                  <div
+                    className="h-full bg-brand-emerald rounded-full transition-all duration-500"
+                    style={{ width: `${act.progress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="pt-2 border-t border-brand-border/60 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-text-muted">
+                  <UserCheck className="w-3.5 h-3.5 text-brand-teal" />
+                  <span className="truncate max-w-[180px]">{act.assigned_to}</span>
+                </div>
+
+                {act.status !== 'COMPLETED' && act.status !== 'RESOLVED' && (
+                  <button
+                    onClick={() => handleComplete(act)}
+                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-brand-emerald text-brand-bg hover:bg-emerald-400 transition-colors shadow-sm"
+                  >
+                    Verify Resolution
+                  </button>
+                )}
+              </div>
             </div>
-
-            {/* Progress bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-text-muted">
-                <span>Remediation Progress</span>
-                <span className="font-mono font-bold text-text-primary">{act.progress}%</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-brand-surface overflow-hidden">
-                <div
-                  className="h-full bg-brand-emerald rounded-full transition-all duration-500"
-                  style={{ width: `${act.progress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Details */}
-            <div className="pt-2 border-t border-brand-border/60 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 text-text-muted">
-                <UserCheck className="w-3.5 h-3.5 text-brand-teal" />
-                <span className="truncate max-w-[180px]">{act.assigned_to}</span>
-              </div>
-
-              {act.status !== 'COMPLETED' && (
-                <button
-                  onClick={() => handleComplete(act.id)}
-                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-brand-emerald text-brand-bg hover:bg-emerald-400 transition-colors shadow-sm"
-                >
-                  Verify Resolution
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
+

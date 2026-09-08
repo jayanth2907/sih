@@ -1,27 +1,62 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import { TrendingUp, BarChart2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { analyticsService } from '../../services/analyticsService';
 
-const FLEET_RISK_DATA = [
-  { day: 'D-10', score: 56 },
-  { day: 'D-8', score: 58 },
-  { day: 'D-6', score: 57 },
-  { day: 'D-4', score: 60 },
-  { day: 'D-2', score: 59 },
-  { day: 'Today', score: 61.7 },
+const DEFAULT_FLEET_RISK = [
+  { day: 'D-10', score: 50 },
+  { day: 'D-8', score: 50 },
+  { day: 'D-6', score: 50 },
+  { day: 'D-4', score: 50 },
+  { day: 'D-2', score: 50 },
+  { day: 'Today', score: 50 },
 ];
 
-const CADENCE_DATA = [
-  { name: 'W1', value: 85 },
-  { name: 'W2', value: 70 },
-  { name: 'W3', value: 90 },
-  { name: 'W4', value: 65 },
-  { name: 'W5', value: 80 },
-  { name: 'W6', value: 78 },
+const DEFAULT_CADENCE = [
+  { name: 'W1', value: 0 },
+  { name: 'W2', value: 0 },
+  { name: 'W3', value: 0 },
+  { name: 'W4', value: 0 },
+  { name: 'W5', value: 0 },
+  { name: 'W6', value: 0 },
 ];
 
 export const DashboardAnalytics = ({ summary }) => {
-  const govResponseScore = summary?.governance_response_score || 72;
+  const [fleetTrend, setFleetTrend] = useState({
+    current_score: 50.0,
+    delta_pct: 0.0,
+    trend: DEFAULT_FLEET_RISK
+  });
+  const [cadenceData, setCadenceData] = useState(DEFAULT_CADENCE);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchAnalytics = async () => {
+      try {
+        const [trendRes, cadenceRes] = await Promise.all([
+          analyticsService.getFleetTrend().catch(() => null),
+          analyticsService.getReportingCadence().catch(() => null),
+        ]);
+        if (mounted) {
+          if (trendRes && trendRes.trend) {
+            setFleetTrend(trendRes);
+          }
+          if (cadenceRes && Array.isArray(cadenceRes)) {
+            setCadenceData(cadenceRes);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard analytics:', err);
+      }
+    };
+    fetchAnalytics();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const govResponseScore = summary?.overall_governance_response_score || summary?.governance_response_score || 72;
+  const latestCadenceVal = cadenceData.length > 0 ? cadenceData[cadenceData.length - 1].value : 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -37,9 +72,11 @@ export const DashboardAnalytics = ({ summary }) => {
 
         <div className="flex items-baseline justify-between my-1">
           <div>
-            <span className="text-2xl font-extrabold font-mono text-text-primary tracking-tight">61.7</span>
+            <span className="text-2xl font-extrabold font-mono text-text-primary tracking-tight">
+              {fleetTrend.current_score}
+            </span>
             <div className="flex items-center gap-1 text-[11px] text-amber-400 font-semibold mt-0.5">
-              <span>↑ 4.2%</span>
+              <span>{fleetTrend.delta_pct >= 0 ? `↑ ${fleetTrend.delta_pct}%` : `↓ ${Math.abs(fleetTrend.delta_pct)}%`}</span>
               <span className="text-text-muted font-normal">vs previous 30-day baseline</span>
             </div>
           </div>
@@ -48,7 +85,7 @@ export const DashboardAnalytics = ({ summary }) => {
         {/* Sparkline chart */}
         <div className="h-16 w-full mt-2">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={FLEET_RISK_DATA}>
+            <AreaChart data={fleetTrend.trend}>
               <defs>
                 <linearGradient id="riskGlow" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10B981" stopOpacity={0.4}/>
@@ -69,21 +106,23 @@ export const DashboardAnalytics = ({ summary }) => {
             <span className="text-xs font-bold text-text-primary">Mine Reporting Cadence</span>
           </div>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-forest text-brand-emerald font-semibold">
-            On schedule
+            Active
           </span>
         </div>
 
         <div className="flex items-baseline justify-between my-1">
           <div>
-            <span className="text-2xl font-extrabold font-mono text-text-primary tracking-tight">78%</span>
-            <p className="text-[11px] text-text-muted mt-0.5">Ingestion telemetry vs expected</p>
+            <span className="text-2xl font-extrabold font-mono text-text-primary tracking-tight">
+              {latestCadenceVal > 0 ? `${latestCadenceVal}` : 'Active'}
+            </span>
+            <p className="text-[11px] text-text-muted mt-0.5">Weekly inspections logged</p>
           </div>
         </div>
 
         {/* Mini Bar Chart */}
         <div className="h-16 w-full mt-2">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={CADENCE_DATA}>
+            <BarChart data={cadenceData}>
               <Bar dataKey="value" fill="#14B8A6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -136,3 +175,4 @@ export const DashboardAnalytics = ({ summary }) => {
     </div>
   );
 };
+
