@@ -40,7 +40,7 @@ def transition_violation_state(
             allowed_next = [s.value if hasattr(s, "value") else str(s) for s in v]
             break
 
-    if target_val not in allowed_next and target_val != "CLOSED" and current_val != "OPEN":
+    if target_val not in allowed_next:
         raise InvalidStateTransitionException(
             f"Invalid state transition from '{current_val}' to '{target_val}'. "
             f"Allowed transitions from '{current_val}': {allowed_next}."

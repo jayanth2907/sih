@@ -6,10 +6,10 @@
   "training_dataset_version": "cil_synth_2026_q3",
   "deployment_timestamp": "2026-09-08T00:00:00Z",
   "evaluation_metrics": {
-    "precision": 0.987,
-    "recall": 0.996,
-    "f1_score": 0.991,
-    "accuracy": 0.983
+    "precision": 0.978,
+    "recall": 0.987,
+    "f1_score": 0.982,
+    "accuracy": 0.967
   },
   "feature_definitions": [
     "severity_num",

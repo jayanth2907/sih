@@ -54,7 +54,9 @@ def setup_db():
         username="inspector.flow",
         email="flow@gov.in",
         password_hash="demo123",
-        role="INSPECTOR"
+        role="INSPECTOR",
+        mine_id=1,
+        is_active=True
     )
     db.add_all([mine, reg, user])
     db.commit()
@@ -84,8 +86,13 @@ def test_sequential_violations_recurrence_and_priority():
         ]
     }
 
+    # Authenticate as Inspector Flow
+    from app.core.security import create_access_token
+    token = create_access_token(user_id=1, username="inspector.flow", role="INSPECTOR", mine_id=1)
+    headers = {"Authorization": f"Bearer {token}"}
+
     # 1. Post First Inspection
-    resp1 = client.post("/api/inspections", json=payload)
+    resp1 = client.post("/api/inspections", json=payload, headers=headers)
     assert resp1.status_code == 200
 
     db = TestingSessionLocal()
@@ -96,7 +103,7 @@ def test_sequential_violations_recurrence_and_priority():
     db.close()
 
     # 2. Post Second Inspection with same regulation
-    resp2 = client.post("/api/inspections", json=payload)
+    resp2 = client.post("/api/inspections", json=payload, headers=headers)
     assert resp2.status_code == 200
 
     db = TestingSessionLocal()

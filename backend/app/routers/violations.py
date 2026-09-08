@@ -180,12 +180,12 @@ def resolve_violation(
         violation.status = ViolationStatusEnum.RESOLVED
         db.commit()
         record_audit_event(
-            event_type="VIOLATION_RESOLVED",
+            db=db,
             entity_type="VIOLATION",
             entity_id=violation.id,
-            user_name=actor_name,
-            user_role=actor_role,
-            action=f"Marked violation #{violation.violation_code} as RESOLVED with notes: {notes}",
-            db_session=db
+            action="VIOLATION_RESOLVED",
+            performed_by_name=actor_name,
+            performed_by_role=actor_role,
+            details={"notes": notes, "action": f"Marked violation #{violation.violation_code} as RESOLVED with notes: {notes}"}
         )
         return {"status": "SUCCESS", "message": f"Violation #{violation.violation_code} successfully resolved."}
