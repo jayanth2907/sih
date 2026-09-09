@@ -18,11 +18,7 @@ export const documentService = {
     formData.append('file', file);
     formData.append('mine_id', mineId);
     formData.append('document_type', documentType);
-    const response = await api.post('/api/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.post('/api/documents/upload', formData);
     return response.data;
   },
   retryOcr: async (docId) => {

@@ -104,7 +104,9 @@ export const DocumentsPage = () => {
       handleOpenReview(newDoc);
     } catch (err) {
       console.error('Upload failed:', err);
-      const msg = err.response?.data?.detail || 'Document upload failed. Please verify format & size.';
+      const serverMsg = err.response?.data?.error?.message || err.response?.data?.detail || err.response?.data?.message;
+      const status = err.response?.status ? ` (HTTP ${err.response.status})` : '';
+      const msg = serverMsg ? `Document upload failed${status}: ${serverMsg}` : `Document upload failed. ${err.message || 'Please check network connection.'}`;
       alert(msg);
     } finally {
       setUploading(false);
