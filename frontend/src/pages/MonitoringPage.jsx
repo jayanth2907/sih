@@ -542,7 +542,7 @@ export const MonitoringPage = () => {
           </div>
 
           <p className="text-[11px] text-text-secondary italic">
-            Integration adapters normalize authorized external records into the KhanDrishti governance model.
+            Integration adapters normalize authorized external records into the TRINETRA governance model.
           </p>
 
           <div className="space-y-3 text-xs">

@@ -27,7 +27,7 @@ export const FloatingAICopilot = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: 'Good day Officer. I am your KhanDrishti AI Safety & Compliance Copilot. How can I assist you with mine risks, SLA breaches, or regulatory provisions today?',
+      text: 'Good day Officer. I am your TRINETRA AI Safety & Compliance Copilot. How can I assist you with mine risks, SLA breaches, or regulatory provisions today?',
       citations: ['DGMS CMR 2017 Reg 104'],
       actionLinks: [],
       sources: ['Mine Registry', 'Risk Engine']

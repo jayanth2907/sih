@@ -212,7 +212,7 @@ export const GlobalSearchModal = ({ isOpen, onClose }) => {
         {/* Footer info */}
         <div className="px-4 py-2 bg-brand-bg/80 border-t border-brand-border flex items-center justify-between text-[11px] text-text-muted">
           <span>Tip: Use arrow keys to navigate, Esc to close</span>
-          <span className="font-mono">KhanDrishti Global Search</span>
+          <span className="font-mono">TRINETRA Global Search</span>
         </div>
       </motion.div>
     </div>

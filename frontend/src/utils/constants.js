@@ -1,6 +1,6 @@
-export const APP_NAME = "KhanDrishti";
+export const APP_NAME = "TRINETRA";
 export const APP_SUBTITLE = "GOV & SAFETY";
-export const APP_TAGLINE = "AI-Based Coal Mine Smart Governance & Compliance System";
+export const APP_TAGLINE = "AI-Powered Smart Governance & Compliance Monitoring";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -76,7 +76,7 @@ export const DEMO_USERS = [
   },
   {
     name: "System Admin",
-    email: "admin@khandrishti.gov.in",
+    email: "admin@coalgov.gov.in",
     role: "ADMIN",
     designation: "Principal Platform Administrator",
     subsidiary: "Ministry of Coal",

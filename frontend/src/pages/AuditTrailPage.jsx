@@ -162,7 +162,7 @@ export const AuditTrailPage = () => {
             <span>Governance Audit Trail & Integrity Ledger</span>
           </h1>
           <p className="text-xs text-text-secondary mt-1">
-            Traceable, hash-chained record of consequential governance actions across KhanDrishti.
+            Traceable, hash-chained record of consequential governance actions across TRINETRA.
           </p>
         </div>
 

@@ -325,7 +325,7 @@ export const GISMapPage = () => {
                 position={[mine.lat, mine.lng]}
                 icon={createMarkerIcon(mine.risk_score)}
               >
-                <Popup className="khandrishti-popup">
+                <Popup className="trinetra-popup">
                   <div className="p-3 bg-brand-surface text-text-primary rounded-xl border border-brand-border space-y-2.5 min-w-[240px]">
                     {/* Header */}
                     <div>

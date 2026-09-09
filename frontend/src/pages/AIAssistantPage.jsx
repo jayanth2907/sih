@@ -38,7 +38,7 @@ export const AIAssistantPage = () => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: 'Good day Officer. I am your KhanDrishti AI Safety & Regulatory Intelligence Copilot. I analyze live statutory mining registers, Silence-to-Risk telemetry, SLA escalations, and DGMS CMR 2017 compliance mandates.',
+      text: 'Good day Officer. I am your TRINETRA AI Safety & Regulatory Intelligence Copilot. I analyze live statutory mining registers, Silence-to-Risk telemetry, SLA escalations, and DGMS CMR 2017 compliance mandates.',
       citations: ['DGMS CMR 2017 Reg 104', 'Coal Mines Act 1952'],
       actionLinks: [
         { label: 'View Command Center', path: '/dashboard' },
@@ -179,7 +179,7 @@ export const AIAssistantPage = () => {
             </div>
             <div>
               <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2">
-                <span>KhanDrishti AI Safety Copilot</span>
+                <span>TRINETRA AI Safety Copilot</span>
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-emerald/20 text-brand-emerald border border-brand-emerald/40 font-mono font-bold">
                   GOVERNANCE COPILOT
                 </span>
@@ -376,7 +376,7 @@ export const AIAssistantPage = () => {
         <div className="p-3 rounded-xl bg-brand-forest/20 border border-brand-emerald/30 text-[10px] text-text-muted">
           <p className="font-bold text-brand-emerald mb-0.5">Defensible Governance Policy</p>
           <p className="leading-tight">
-            "KhanDrishti AI Safety Copilot assists decision-making; final statutory compliance decisions require authorized human verification."
+            "TRINETRA AI Safety Copilot assists decision-making; final statutory compliance decisions require authorized human verification."
           </p>
         </div>
       </div>
